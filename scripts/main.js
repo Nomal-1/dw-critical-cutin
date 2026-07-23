@@ -150,6 +150,14 @@ Hooks.on('renderActorSheet', (app, html, data) => {
  *   카드 제목(.cell__title)에 그 액션 아이템의 이름이 그대로 표시된다.
  * 이 시스템은 ChatMessage 문서 자체(message.rolls)에는 굴림 결과를 저장하지
  * 않기 때문에, message.content(렌더링된 HTML 문자열)를 파싱하는 방법이 유일하다.
+ *
+ * 다만 액터를 찾을 때는 카드 HTML의 data-actor-id 속성을 쓰지 않는다.
+ * 던전월드 소스(rolls.js)를 보면, 주사위를 굴리지 않는 액션(설명만 있는 NPC
+ * 액션 등)은 templateData.actor를 아예 설정하지 않는 별도 코드 경로를 타서
+ * data-actor-id가 빈 값으로 렌더링된다. 반면 chatData.speaker는 굴림 여부와
+ * 무관하게 항상 설정되고, 이건 HTML이 아니라 ChatMessage 문서 자체의 표준
+ * 필드(message.speaker.actor)라서 굴림 없는 액션에서도 안정적으로 액터를
+ * 찾을 수 있다.
  */
 Hooks.on('createChatMessage', (message, options, userId) => {
   // 던전월드 시스템이 아니면 아무것도 하지 않음
@@ -159,8 +167,8 @@ Hooks.on('createChatMessage', (message, options, userId) => {
   const $moveCard = $content.find('.move-card');
   if ($moveCard.length === 0) return;
 
-  const actorId = $moveCard.attr('data-actor-id');
-  const actor = game.actors.get(actorId);
+  const actorId = message.speaker?.actor;
+  const actor = actorId ? game.actors.get(actorId) : null;
   if (!actor) return;
 
   // 액터 flag에 컷인 이미지가 설정되어 있지 않으면 연출하지 않음
