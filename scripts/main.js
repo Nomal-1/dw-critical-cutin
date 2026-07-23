@@ -88,24 +88,26 @@ Hooks.once('init', () => {
 });
 
 /**
- * NPC의 액션(npcMove) 아이템 시트에 "이 액션 사용 시 컷인 발동" 체크박스를 추가한다.
+ * NPC의 액션(npcMove) 아이템 시트 "정보" 탭에 "이 액션 사용 시 컷인 발동" 체크박스를 추가한다.
  * 체크되어 있으면 주사위 결과나 판정 여부와 무관하게, 그 액션이 사용될 때마다
  * (채팅에 카드가 뜰 때마다) 무조건 컷인이 발동한다. GM에게만 보인다.
  * 체크박스의 name을 "flags.dw-critical-cutin.forceCutin"으로 지정해두면,
  * 아이템 시트가 자체적으로 가진 자동 저장 기능(변경 시 document.update 호출)이
  * 이 값도 함께 액터/아이템 flag로 저장해준다 — 별도의 저장 버튼이 필요 없다.
+ *
+ * npcMove-sheet.html 원본을 확인해보면 "정보" 탭은 실제로는
+ * data-tab="details"이고, 그 안의 "판정 공식"/"액션 유형" 필드가 각각
+ * .resource 클래스의 상자에 들어있다. 우리 체크박스도 같은 .resource
+ * 클래스를 같이 써서 그 필드들과 똑같은 크기/여백으로 자연스럽게 들어가게 한다.
  */
 Hooks.on('renderItemSheet', (app, html, data) => {
   if (game.system.id !== 'dungeonworld') return;
   if (!game.user.isGM) return;
   if (app.item.type !== 'npcMove') return;
 
-  // form-group/form-fields 같은 시스템 공용 클래스는 다른 용도(이미지 미리보기 등)로
-  // 큰 고정 높이가 잡혀 있어서 체크박스 하나에도 그대로 적용되면 레이아웃이 깨진다.
-  // 그래서 시스템 클래스에 기대지 않고, 이 체크박스 전용 클래스로 직접 스타일을 준다.
   const checked = app.item.getFlag(MODULE_ID, 'forceCutin') ? 'checked' : '';
   const field = $(
-    `<div class="dw-critical-cutin-force">` +
+    `<div class="resource dw-critical-cutin-force">` +
       `<label>` +
         `<input type="checkbox" name="flags.${MODULE_ID}.forceCutin" ${checked} />` +
         `이 액션 사용 시 컷인 발동 (결과 무관)` +
@@ -113,10 +115,8 @@ Hooks.on('renderItemSheet', (app, html, data) => {
     `</div>`
   );
 
-  // html 자체가 아니라 창의 실제 내용 영역(.window-content) 안에 넣어야
-  // 제목표시줄(.window-header)보다 아래, 원래 내용의 맨 위에 자연스럽게 붙는다.
-  const windowContent = html.closest('.app').find('.window-content');
-  windowContent.prepend(field);
+  const detailsTab = html.closest('.app').find('.tab[data-tab="details"]');
+  detailsTab.append(field);
 });
 
 /**
