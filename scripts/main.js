@@ -112,7 +112,11 @@ Hooks.on('renderItemSheet', (app, html, data) => {
       `</label>` +
     `</div>`
   );
-  html.prepend(field);
+
+  // html 자체가 아니라 창의 실제 내용 영역(.window-content) 안에 넣어야
+  // 제목표시줄(.window-header)보다 아래, 원래 내용의 맨 위에 자연스럽게 붙는다.
+  const windowContent = html.closest('.app').find('.window-content');
+  windowContent.prepend(field);
 });
 
 /**
