@@ -1,8 +1,8 @@
 {
   "id": "dw-critical-cutin",
   "title": "대성공 컷인 (DW Critical Cutin)",
-  "description": "던전월드(Dungeon World) 판정에서 대성공(10 이상)이 나오면 전체 화면 컷인 이미지와 효과음을 자동으로 재생합니다.",
-  "version": "0.2.0",
+  "description": "던전월드(Dungeon World)에서 설정한 발동 조건(판정 성공/대성공, 데미지 초과, 특정 몬스터 액션 사용 등)을 만족하면 전체 화면 컷인 이미지와 효과음을 자동으로 재생합니다.",
+  "version": "0.3.0",
   "manifest": "https://github.com/Nomal-1/dw-critical-cutin/releases/latest/download/module.json",
   "download": "https://github.com/Nomal-1/dw-critical-cutin/releases/latest/download/module.zip",
   "compatibility": {

@@ -1,12 +1,11 @@
 /**
  * 대성공 컷인 모듈
- * 던전월드(Dungeon World) 무브 판정에서 대성공(10 이상)이 나오면
+ * 던전월드(Dungeon World)에서 설정된 발동 조건(플레이어 판정 성공/대성공,
+ * 플레이어·몬스터 데미지 초과, 특정 몬스터 액션 사용)을 만족하면
  * 전체 화면 컷인 이미지 + 효과음을 자동으로 재생한다.
  */
 
 import { CutinConfig, MODULE_ID } from './cutin-config.js';
-
-const CRITICAL_THRESHOLD = 10;
 
 /**
  * GM이 설정(Configure Settings)의 모듈 설정 항목에서 조정하는 연출 타이밍 3종.
@@ -44,6 +43,73 @@ Hooks.once('init', () => {
     default: 500,
     range: { min: 0, max: 10000, step: 100 },
   });
+
+  /**
+   * 컷인 발동 조건. 아래 4개는 world 설정, "몬스터 액션 사용"은 각 NPC 액션
+   * 아이템 시트의 체크박스로 개별 지정한다 (아래 renderItemSheet 훅 참고).
+   */
+  game.settings.register(MODULE_ID, 'triggerPlayerSuccess', {
+    name: '플레이어 대성공(10+)에 발동',
+    hint: '플레이어의 무브 판정이 대성공(합계 10 이상)일 때 컷인을 발동합니다.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  game.settings.register(MODULE_ID, 'triggerPlayerPartial', {
+    name: '플레이어 성공(7~9)에도 발동',
+    hint: '플레이어의 무브 판정이 부분 성공(합계 7~9)일 때도 컷인을 발동합니다.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
+  game.settings.register(MODULE_ID, 'playerDamageThreshold', {
+    name: '플레이어 데미지 발동 기준값',
+    hint: '플레이어가 이 값을 초과하는 데미지를 굴리면 컷인을 발동합니다. 0이면 사용하지 않습니다.',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 0,
+    range: { min: 0, max: 50, step: 1 },
+  });
+
+  game.settings.register(MODULE_ID, 'monsterDamageThreshold', {
+    name: '몬스터 데미지 발동 기준값',
+    hint: '몬스터(NPC)가 이 값을 초과하는 데미지를 굴리면 컷인을 발동합니다. 0이면 사용하지 않습니다.',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 0,
+    range: { min: 0, max: 50, step: 1 },
+  });
+});
+
+/**
+ * NPC의 액션(npcMove) 아이템 시트에 "이 액션 사용 시 컷인 발동" 체크박스를 추가한다.
+ * 체크되어 있으면 주사위 결과나 판정 여부와 무관하게, 그 액션이 사용될 때마다
+ * (채팅에 카드가 뜰 때마다) 무조건 컷인이 발동한다. GM에게만 보인다.
+ * 체크박스의 name을 "flags.dw-critical-cutin.forceCutin"으로 지정해두면,
+ * 아이템 시트가 자체적으로 가진 자동 저장 기능(변경 시 document.update 호출)이
+ * 이 값도 함께 액터/아이템 flag로 저장해준다 — 별도의 저장 버튼이 필요 없다.
+ */
+Hooks.on('renderItemSheet', (app, html, data) => {
+  if (game.system.id !== 'dungeonworld') return;
+  if (!game.user.isGM) return;
+  if (app.item.type !== 'npcMove') return;
+
+  const checked = app.item.getFlag(MODULE_ID, 'forceCutin') ? 'checked' : '';
+  const field = $(
+    `<div class="form-group dw-critical-cutin-force">` +
+      `<label>이 액션 사용 시 컷인 발동 (결과 무관)</label>` +
+      `<div class="form-fields">` +
+        `<input type="checkbox" name="flags.${MODULE_ID}.forceCutin" ${checked} />` +
+      `</div>` +
+    `</div>`
+  );
+  html.prepend(field);
 });
 
 /**
@@ -66,12 +132,17 @@ Hooks.on('renderActorSheet', (app, html, data) => {
 });
 
 /**
- * 던전월드 시스템의 채팅 카드 템플릿(chat-move.html)은
- *   <div class="... move-card" data-roll-total="12" data-actor-id="abc123">
- * 형태로 굴림 총합과 액터 ID를 HTML 속성에 직접 담아서 렌더링한다.
+ * 던전월드 시스템은 채팅 카드 템플릿(chat-move.html) 하나를 무브 판정뿐 아니라
+ * 데미지 굴림, 굴림 없는 액션 사용 등에도 재사용한다. 그래서 카드 안의 표식으로
+ * 어떤 종류의 카드인지 구분해야 한다.
+ * - 무브 판정(2d6)일 때만 성공/부분성공/실패가 계산되어 result 클래스
+ *   (success/partial/failure)가 붙는다 (CONFIG.DW.rollResults 기준).
+ * - 데미지 굴림은 result 클래스 대신 데미지 적용 버튼 묶음(chat-damage-buttons)이
+ *   붙고, data-roll-total 속성에 데미지 합계가 담긴다.
+ * - 굴림 자체가 없는(설명만 있는) 액션 사용도 같은 카드 형태로 뜨며, 이때는
+ *   카드 제목(.cell__title)에 그 액션 아이템의 이름이 그대로 표시된다.
  * 이 시스템은 ChatMessage 문서 자체(message.rolls)에는 굴림 결과를 저장하지
- * 않기 때문에, message.content(렌더링된 HTML 문자열)를 파싱해서 이 속성을
- * 읽는 방법이 굴림 결과를 확인하는 유일한 방법이다.
+ * 않기 때문에, message.content(렌더링된 HTML 문자열)를 파싱하는 방법이 유일하다.
  */
 Hooks.on('createChatMessage', (message, options, userId) => {
   // 던전월드 시스템이 아니면 아무것도 하지 않음
@@ -79,12 +150,7 @@ Hooks.on('createChatMessage', (message, options, userId) => {
 
   const $content = $('<div>').html(message.content);
   const $moveCard = $content.find('.move-card');
-
-  // 무브 판정 카드가 아니면(예: 일반 채팅, 데미지 롤 등) 무시
   if ($moveCard.length === 0) return;
-
-  const rollTotal = Number($moveCard.attr('data-roll-total'));
-  if (!Number.isFinite(rollTotal) || rollTotal < CRITICAL_THRESHOLD) return;
 
   const actorId = $moveCard.attr('data-actor-id');
   const actor = game.actors.get(actorId);
@@ -94,9 +160,50 @@ Hooks.on('createChatMessage', (message, options, userId) => {
   const image = actor.getFlag(MODULE_ID, 'image');
   if (!image) return;
 
+  if (!isCutinTriggered($moveCard, actor)) return;
+
   const sound = actor.getFlag(MODULE_ID, 'sound');
   playCriticalCutin(image, sound);
 });
+
+/**
+ * 발동 조건 5가지 중 하나라도 맞으면 true.
+ * 1) 몬스터 액션 사용: 체크박스가 켜진 NPC 액션과 카드 제목이 같으면 결과 무관 발동
+ * 2) 몬스터 데미지 초과: NPC의 데미지 굴림 합계가 기준값을 넘으면 발동
+ * 3) 플레이어 데미지 초과: PC의 데미지 굴림 합계가 기준값을 넘으면 발동
+ * 4) 플레이어 대성공: PC의 무브 판정이 성공(10+)이면 발동
+ * 5) 플레이어 성공: PC의 무브 판정이 부분 성공(7~9)이면 발동
+ */
+function isCutinTriggered($moveCard, actor) {
+  if (actor.type === 'npc') {
+    const title = $moveCard.find('.cell__title').first().text().trim();
+    const forcedMove = actor.items.find(
+      (item) => item.type === 'npcMove' && item.getFlag(MODULE_ID, 'forceCutin') && item.name === title
+    );
+    if (forcedMove) return true;
+  }
+
+  const isDamageRoll = $moveCard.find('.chat-damage-buttons').length > 0;
+  if (isDamageRoll) {
+    const total = Number($moveCard.attr('data-roll-total'));
+    if (!Number.isFinite(total)) return false;
+
+    const settingKey = actor.type === 'npc' ? 'monsterDamageThreshold' : 'playerDamageThreshold';
+    const threshold = Number(game.settings.get(MODULE_ID, settingKey)) || 0;
+    return threshold > 0 && total > threshold;
+  }
+
+  if (actor.type === 'character') {
+    if (game.settings.get(MODULE_ID, 'triggerPlayerSuccess') && $moveCard.find('.result.success').length > 0) {
+      return true;
+    }
+    if (game.settings.get(MODULE_ID, 'triggerPlayerPartial') && $moveCard.find('.result.partial').length > 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * 전체 화면 오버레이로 이미지를 띄우고 효과음을 재생한다.
