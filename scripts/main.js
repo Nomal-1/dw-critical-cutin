@@ -100,13 +100,16 @@ Hooks.on('renderItemSheet', (app, html, data) => {
   if (!game.user.isGM) return;
   if (app.item.type !== 'npcMove') return;
 
+  // form-group/form-fields 같은 시스템 공용 클래스는 다른 용도(이미지 미리보기 등)로
+  // 큰 고정 높이가 잡혀 있어서 체크박스 하나에도 그대로 적용되면 레이아웃이 깨진다.
+  // 그래서 시스템 클래스에 기대지 않고, 이 체크박스 전용 클래스로 직접 스타일을 준다.
   const checked = app.item.getFlag(MODULE_ID, 'forceCutin') ? 'checked' : '';
   const field = $(
-    `<div class="form-group dw-critical-cutin-force">` +
-      `<label>이 액션 사용 시 컷인 발동 (결과 무관)</label>` +
-      `<div class="form-fields">` +
+    `<div class="dw-critical-cutin-force">` +
+      `<label>` +
         `<input type="checkbox" name="flags.${MODULE_ID}.forceCutin" ${checked} />` +
-      `</div>` +
+        `이 액션 사용 시 컷인 발동 (결과 무관)` +
+      `</label>` +
     `</div>`
   );
   html.prepend(field);

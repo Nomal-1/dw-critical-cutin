@@ -28,3 +28,23 @@
   transition-property: transform;
   transition-timing-function: ease-in-out;
 }
+
+/* NPC 액션 아이템 시트에 넣는 "이 액션 사용 시 컷인 발동" 체크박스 한 줄 */
+.dw-critical-cutin-force {
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.dw-critical-cutin-force label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.dw-critical-cutin-force input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+}
