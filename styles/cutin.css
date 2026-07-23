@@ -1,4 +1,12 @@
-/* 대성공 컷인 오버레이: 화면 전체를 덮는 반투명 배경 위에 이미지를 표시 */
+/*
+ * 대성공 컷인 오버레이: 화면 전체를 덮는 반투명 배경 위에 이미지를 표시.
+ * 실제 등장/유지/페이드아웃 시간은 scripts/main.js가 GM의 모듈 설정값을 읽어
+ * transitionDuration을 그때그때 정해서 재생하므로, 여기서는 초기 상태와
+ * transition-property만 정의한다 (duration은 JS가 인라인 스타일로 지정).
+ *
+ * 컷인이 떠 있는 동안에는 화면 클릭을 막아서(pointer-events: auto, 기본값)
+ * 페이드아웃이 끝나 오버레이가 제거된 뒤에야 다시 조작할 수 있게 한다.
+ */
 .dw-critical-cutin-overlay {
   position: fixed;
   inset: 0;
@@ -7,29 +15,16 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-  animation: dw-critical-cutin-fade 3s ease-in-out forwards;
+  opacity: 0;
+  transition-property: opacity;
+  transition-timing-function: ease-in-out;
 }
 
 .dw-critical-cutin-overlay img {
   max-width: 80vw;
   max-height: 80vh;
   object-fit: contain;
-  animation: dw-critical-cutin-pop 3s ease-in-out forwards;
-}
-
-/* 배경: 살짝 어두워졌다가(페이드 인) 끝에 사라짐(페이드 아웃) */
-@keyframes dw-critical-cutin-fade {
-  0% { opacity: 0; }
-  10% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* 이미지: 작게 시작해서 살짝 튀어나오듯 커졌다가 원래 크기로 안착 */
-@keyframes dw-critical-cutin-pop {
-  0% { transform: scale(0.6); }
-  15% { transform: scale(1.05); }
-  25% { transform: scale(1); }
-  100% { transform: scale(1); }
+  transform: scale(0.6);
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
 }

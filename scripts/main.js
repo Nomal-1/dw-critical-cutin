@@ -9,13 +9,52 @@ import { CutinConfig, MODULE_ID } from './cutin-config.js';
 const CRITICAL_THRESHOLD = 10;
 
 /**
- * PC 액터 시트를 열었을 때 헤더에 "컷인 설정" 버튼을 추가한다.
- * 던전월드 시스템의 액터 타입은 'character'(PC)와 'npc' 두 가지이며,
- * 이 모듈은 PC에만 컷인을 설정하므로 'character' 타입일 때만 버튼을 단다.
+ * GM이 설정(Configure Settings)의 모듈 설정 항목에서 조정하는 연출 타이밍 3종.
+ * scope: 'world'로 등록하면 플레이어에게는 이 항목 자체가 보이지 않고,
+ * GM만 Configure Settings 화면에서 값을 바꿀 수 있다 (Foundry 코어 동작).
+ * 값의 단위는 ms(1000 = 1초)이며, 0으로 두면 해당 구간을 건너뛴다.
+ */
+Hooks.once('init', () => {
+  game.settings.register(MODULE_ID, 'growDuration', {
+    name: '등장(확대) 시간 (ms)',
+    hint: '작게 나타난 컷인 이미지가 원래 크기로 커지는 데 걸리는 시간입니다. 0이면 처음부터 완전히 커진 상태로 나타납니다.',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 500,
+    range: { min: 0, max: 10000, step: 100 },
+  });
+
+  game.settings.register(MODULE_ID, 'holdDuration', {
+    name: '유지 시간 (ms)',
+    hint: '컷인이 완전히 커진 채로 화면에 머무르는 시간입니다. 0이면 커지자마자 바로 페이드아웃을 시작합니다.',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 2000,
+    range: { min: 0, max: 20000, step: 100 },
+  });
+
+  game.settings.register(MODULE_ID, 'fadeDuration', {
+    name: '페이드아웃 시간 (ms)',
+    hint: '컷인이 서서히 사라지는 데 걸리는 시간입니다. 0이면 즉시 사라집니다.',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 500,
+    range: { min: 0, max: 10000, step: 100 },
+  });
+});
+
+/**
+ * 액터 시트를 열었을 때 헤더에 "컷인 설정" 버튼을 추가한다.
+ * - PC('character')와 NPC 모두에 버튼을 단다 (마스터가 NPC 컷인도 설정할 수 있어야 하므로).
+ * - game.user.isGM으로 막아서 플레이어에게는 이 버튼 자체가 보이지 않는다.
+ *   (자신의 캐릭터 시트를 열어도 플레이어에게는 안 보이고, GM에게만 보인다.)
  */
 Hooks.on('renderActorSheet', (app, html, data) => {
   if (game.system.id !== 'dungeonworld') return;
-  if (app.actor.type !== 'character') return;
+  if (!game.user.isGM) return;
 
   const windowHeader = html.closest('.app').find('.window-header');
   const button = $(
@@ -73,9 +112,7 @@ function playCriticalCutin(imagePath, soundPath) {
   const img = document.createElement('img');
   img.src = imagePath;
   overlay.appendChild(img);
-
   document.body.appendChild(overlay);
-  overlay.addEventListener('animationend', () => overlay.remove(), { once: true });
 
   if (soundPath) {
     // AudioHelper: FVTT 코어가 제공하는 사운드 재생 API. new Audio()를 직접 쓰는 것보다
@@ -85,4 +122,61 @@ function playCriticalCutin(imagePath, soundPath) {
     // 클라이언트에서 각자 실행되므로 push까지 켜면 소리가 중복 재생된다.
     AudioHelper.play({ src: soundPath, volume: 1, autoplay: true, loop: false }, false);
   }
+
+  const growMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'growDuration')) || 0);
+  const holdMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'holdDuration')) || 0);
+  const fadeMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'fadeDuration')) || 0);
+
+  runCutinSequence(overlay, img, growMs, holdMs, fadeMs);
+}
+
+/**
+ * 등장(확대) → 유지 → 페이드아웃 순서로 재생하고 끝나면 오버레이를 제거한다.
+ * 각 구간 시간을 0으로 두면 그 구간은 애니메이션 없이 바로 다음 단계로 넘어간다.
+ */
+async function runCutinSequence(overlay, img, growMs, holdMs, fadeMs) {
+  await animateTo(overlay, img, growMs, { opacity: '1', scale: '1' });
+
+  if (holdMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+  }
+
+  await animateTo(overlay, img, fadeMs, { opacity: '0', scale: '1' });
+
+  overlay.remove();
+}
+
+/**
+ * overlay의 opacity와 img의 확대/축소(scale)를 durationMs 동안 목표값까지 바꾼다.
+ * CSS의 transition 속성을 이용하는데, durationMs가 0이면 transition 없이
+ * 목표값으로 즉시 바꿔서 그 구간을 건너뛴 것처럼 만든다.
+ */
+function animateTo(overlay, img, durationMs, { opacity, scale }) {
+  return new Promise((resolve) => {
+    overlay.style.transitionDuration = `${durationMs}ms`;
+    img.style.transitionDuration = `${durationMs}ms`;
+
+    if (durationMs <= 0) {
+      overlay.style.opacity = opacity;
+      img.style.transform = `scale(${scale})`;
+      resolve();
+      return;
+    }
+
+    const onTransitionEnd = (event) => {
+      // img의 transform transition도 overlay까지 버블링되므로,
+      // overlay 자신의 opacity transition이 끝났을 때만 다음 단계로 넘어간다.
+      if (event.target !== overlay) return;
+      overlay.removeEventListener('transitionend', onTransitionEnd);
+      resolve();
+    };
+    overlay.addEventListener('transitionend', onTransitionEnd);
+
+    // 같은 프레임에서 바로 값을 바꾸면 브라우저가 transition을 생략할 수 있어
+    // 한 프레임 뒤로 미뤄서 실제로 애니메이션이 걸리게 한다.
+    requestAnimationFrame(() => {
+      overlay.style.opacity = opacity;
+      img.style.transform = `scale(${scale})`;
+    });
+  });
 }
