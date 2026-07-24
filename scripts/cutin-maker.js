@@ -73,13 +73,13 @@ export class CutinMaker extends Application {
     html.find('#dw-cutin-maker-scale').on('input', (event) => {
       this.charScale = Number(event.currentTarget.value) / 100;
       html.find('#dw-cutin-maker-scale-val').text(`${event.currentTarget.value}%`);
-      this._render();
+      this._redrawCanvas();
     });
 
     html.find('#dw-cutin-maker-rot').on('input', (event) => {
       this.charRot = Number(event.currentTarget.value);
       html.find('#dw-cutin-maker-rot-val').text(`${event.currentTarget.value}°`);
-      this._render();
+      this._redrawCanvas();
     });
 
     html.find('#dw-cutin-maker-canvas').on('mousedown', (event) => this._onMouseDown(event));
@@ -129,7 +129,7 @@ export class CutinMaker extends Application {
       this.canvas.height = img.height;
       this.charPos = { x: img.width / 2, y: img.height / 2 };
       this._setStatus('프레임 적용됨. 2단계에서 캐릭터를 올려보세요.');
-      this._render();
+      this._redrawCanvas();
     };
     img.src = FRAME_PRESETS[index].path;
   }
@@ -146,7 +146,7 @@ export class CutinMaker extends Application {
         this.charScale = Math.min((this.frameImg.height * 0.8) / img.height, 1.4);
       }
       this._setStatus('캐릭터 업로드 완료. 드래그로 위치를 맞춰보세요.');
-      this._render();
+      this._redrawCanvas();
     };
     img.src = URL.createObjectURL(file);
   }
@@ -172,7 +172,7 @@ export class CutinMaker extends Application {
     if (!this.dragging || !this.charImg) return;
     const pos = this._getCanvasPos(event);
     this.charPos = { x: pos.x - this.dragOffset.x, y: pos.y - this.dragOffset.y };
-    this._render();
+    this._redrawCanvas();
   }
 
   _onMouseUp() {
@@ -180,7 +180,7 @@ export class CutinMaker extends Application {
   }
 
   /** 프레임은 항상 맨 앞, 캐릭터는 그 뒤에 그린다. */
-  _render() {
+  _redrawCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (this.charImg) {
