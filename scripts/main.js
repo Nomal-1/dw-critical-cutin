@@ -6,6 +6,7 @@
  */
 
 import { CutinConfig, MODULE_ID } from './cutin-config.js';
+import { CutinMaker } from './cutin-maker.js';
 
 /**
  * GM이 설정(Configure Settings)의 모듈 설정 항목에서 조정하는 연출 타이밍 3종.
@@ -120,22 +121,34 @@ Hooks.on('renderItemSheet', (app, html, data) => {
 });
 
 /**
- * 액터 시트를 열었을 때 헤더에 "컷인 설정" 버튼을 추가한다.
+ * 액터 시트를 열었을 때 헤더에 "컷인 설정" / "이미지 만들기" 버튼을 추가한다.
  * - PC('character')와 NPC 모두에 버튼을 단다 (마스터가 NPC 컷인도 설정할 수 있어야 하므로).
  * - game.user.isGM으로 막아서 플레이어에게는 이 버튼 자체가 보이지 않는다.
  *   (자신의 캐릭터 시트를 열어도 플레이어에게는 안 보이고, GM에게만 보인다.)
+ * "이미지 만들기"는 프레임 + 캐릭터 일러스트를 합성해서 컷인 이미지를 만들어주는
+ * 창(CutinMaker)을 연다. 완성하면 그 자리에서 서버에 업로드되고 이 액터의
+ * 컷인 이미지로 바로 저장되므로, "컷인 설정"에서 이미지 경로를 따로 입력할
+ * 필요가 없어진다 (효과음은 여전히 "컷인 설정"에서 따로 지정해야 한다).
  */
 Hooks.on('renderActorSheet', (app, html, data) => {
   if (game.system.id !== 'dungeonworld') return;
   if (!game.user.isGM) return;
 
   const windowHeader = html.closest('.app').find('.window-header');
-  const button = $(
+
+  const configButton = $(
     `<a class="header-button dw-critical-cutin-config" title="대성공 컷인 설정">` +
       `<i class="fas fa-star"></i> 컷인 설정</a>`
   );
-  button.on('click', () => new CutinConfig(app.actor).render(true));
-  windowHeader.find('.close').before(button);
+  configButton.on('click', () => new CutinConfig(app.actor).render(true));
+
+  const makerButton = $(
+    `<a class="header-button dw-critical-cutin-maker" title="컷인 이미지 만들기">` +
+      `<i class="fas fa-image"></i> 이미지 만들기</a>`
+  );
+  makerButton.on('click', () => new CutinMaker(app.actor).render(true));
+
+  windowHeader.find('.close').before(configButton, makerButton);
 });
 
 /**

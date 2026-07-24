@@ -1,0 +1,37 @@
+<div class="dw-cutin-maker">
+  <div class="dw-cutin-maker-panel">
+    <p class="dw-cutin-maker-lede">
+      "{{actorName}}"의 컷인 이미지를 만듭니다. 프레임을 고르고 캐릭터 일러스트를 올리면,
+      프레임 뒤에 배치해서 저장할 수 있어요.
+    </p>
+
+    <div class="dw-cutin-maker-section">
+      <p class="dw-cutin-maker-section-title">1. 프레임 선택</p>
+      <div class="dw-cutin-maker-presets" id="dw-cutin-maker-presets"></div>
+      <p class="dw-cutin-maker-hint">프레임은 항상 맨 앞, 캐릭터는 그 뒤에 고정돼요. 프레임의 투명한 부분으로 캐릭터가 비쳐 보여요.</p>
+    </div>
+
+    <div class="dw-cutin-maker-section">
+      <p class="dw-cutin-maker-section-title">2. 캐릭터 업로드 · 배치</p>
+      <input type="file" id="dw-cutin-maker-char-input" accept="image/*">
+      <div class="dw-cutin-maker-divider"></div>
+      <label>크기 <span id="dw-cutin-maker-scale-val">100%</span></label>
+      <input type="range" id="dw-cutin-maker-scale" min="20" max="300" value="100">
+      <label>회전 <span id="dw-cutin-maker-rot-val">0°</span></label>
+      <input type="range" id="dw-cutin-maker-rot" min="-45" max="45" value="0">
+      <p class="dw-cutin-maker-hint">캔버스 위에서 캐릭터를 마우스로 드래그하면 위치를 옮길 수 있어요.</p>
+    </div>
+
+    <div class="dw-cutin-maker-section">
+      <p class="dw-cutin-maker-section-title">3. 저장</p>
+      <button type="button" id="dw-cutin-maker-save">이 액터의 컷인 이미지로 저장</button>
+      <p class="dw-cutin-maker-hint">저장하면 서버에 업로드되고, "{{actorName}}"의 컷인 이미지 경로에 자동으로 채워져요. 프레임 바깥의 회색 배경은 저장할 때 자동으로 투명 처리돼요.</p>
+    </div>
+
+    <div class="dw-cutin-maker-status" id="dw-cutin-maker-status">프레임을 먼저 골라주세요.</div>
+  </div>
+
+  <div class="dw-cutin-maker-stage">
+    <canvas id="dw-cutin-maker-canvas" width="900" height="1200"></canvas>
+  </div>
+</div>
