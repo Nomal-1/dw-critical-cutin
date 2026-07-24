@@ -1,0 +1,140 @@
+/*
+ * "컷인 이미지 만들기" 창(scripts/cutin-maker.js) 전용 스타일.
+ * 다른 Foundry 창과 스타일이 섞이지 않도록 클래스 이름 앞에
+ * 전부 dw-cutin-maker- 접두사를 붙여서 범위를 좁혀둔다.
+ */
+#dw-critical-cutin-maker .window-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dw-cutin-maker {
+  --dw-cutin-maker-line: rgba(255, 255, 255, 0.12);
+  --dw-cutin-maker-sub: #9a9a9a;
+  --dw-cutin-maker-accent: #c81e3a;
+
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.dw-cutin-maker-panel {
+  padding: 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--dw-cutin-maker-line);
+}
+
+.dw-cutin-maker-lede {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  color: var(--dw-cutin-maker-sub);
+}
+
+.dw-cutin-maker-section {
+  border: 1px solid var(--dw-cutin-maker-line);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.dw-cutin-maker-section-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.dw-cutin-maker-panel label {
+  font-size: 11.5px;
+  color: var(--dw-cutin-maker-sub);
+  display: flex;
+  justify-content: space-between;
+}
+
+.dw-cutin-maker-panel input[type='range'] {
+  width: 100%;
+}
+
+.dw-cutin-maker-panel input[type='file'] {
+  font-size: 12px;
+  width: 100%;
+}
+
+.dw-cutin-maker-divider {
+  height: 1px;
+  background: var(--dw-cutin-maker-line);
+  margin: 8px 0;
+}
+
+.dw-cutin-maker-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dw-cutin-maker-preset-btn {
+  border: 2px solid var(--dw-cutin-maker-line);
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.dw-cutin-maker-preset-btn img {
+  width: 100%;
+  height: 56px;
+  object-fit: contain;
+}
+
+.dw-cutin-maker-preset-btn span {
+  font-size: 10px;
+  color: var(--dw-cutin-maker-sub);
+  text-align: center;
+}
+
+.dw-cutin-maker-preset-btn.active {
+  border-color: var(--dw-cutin-maker-accent);
+}
+
+#dw-cutin-maker-save {
+  width: 100%;
+}
+
+.dw-cutin-maker-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dw-cutin-maker-sub);
+  margin: 6px 0 0;
+}
+
+.dw-cutin-maker-status {
+  font-size: 11px;
+  color: var(--dw-cutin-maker-sub);
+  text-align: center;
+  margin-top: 8px;
+}
+
+.dw-cutin-maker-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%) 0 0 / 20px 20px,
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%) 0 0 / 20px 20px,
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.04) 75%) 0 0 / 20px 20px,
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.04) 75%) 0 0 / 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.dw-cutin-maker-stage canvas {
+  max-width: 100%;
+  max-height: 100%;
+  cursor: grab;
+  box-shadow: 0 0 0 1px var(--dw-cutin-maker-line);
+}
