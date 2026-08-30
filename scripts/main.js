@@ -241,28 +241,36 @@ function isCutinTriggered($moveCard, actor) {
  * 모든 화면에서 동시에 연출이 재생된다.
  */
 function playCriticalCutin(imagePath, soundPath) {
-  const overlay = document.createElement('div');
-  overlay.classList.add('dw-critical-cutin-overlay');
-
-  const img = document.createElement('img');
-  img.src = imagePath;
-  overlay.appendChild(img);
-  document.body.appendChild(overlay);
-
-  if (soundPath) {
-    // AudioHelper: FVTT 코어가 제공하는 사운드 재생 API. new Audio()를 직접 쓰는 것보다
-    // 코어의 인터페이스 음량 설정(설정 > 오디오/비디오)을 자동으로 반영해준다.
-    // 두 번째 인자(push)는 false로 둔다 — true로 하면 이 클라이언트가 다른 접속자에게도
-    // "이 소리를 재생해라"라고 socket으로 알리는데, createChatMessage 훅은 이미 모든
-    // 클라이언트에서 각자 실행되므로 push까지 켜면 소리가 중복 재생된다.
-    AudioHelper.play({ src: soundPath, volume: 1, autoplay: true, loop: false }, false);
-  }
-
   const growMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'growDuration')) || 0);
   const holdMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'holdDuration')) || 0);
   const fadeMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'fadeDuration')) || 0);
 
-  runCutinSequence(overlay, img, growMs, holdMs, fadeMs);
+  // img.src를 지정해도 실제 파일이 내려받아지기 전까지는 화면에 아무것도 안 보인다.
+  // 오버레이를 먼저 띄우고 타이머부터 돌리면, 유지 시간이 짧을 때 이미지가 채
+  // 로드되기도 전에 페이드아웃까지 끝나버려 그림이 거의 안 보이는 것처럼 된다.
+  // 그래서 이미지가 완전히 로드된 뒤에야 오버레이를 붙이고 소리·타이머를 시작한다.
+  const img = document.createElement('img');
+  img.onload = () => {
+    const overlay = document.createElement('div');
+    overlay.classList.add('dw-critical-cutin-overlay');
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+
+    if (soundPath) {
+      // AudioHelper: FVTT 코어가 제공하는 사운드 재생 API. new Audio()를 직접 쓰는 것보다
+      // 코어의 인터페이스 음량 설정(설정 > 오디오/비디오)을 자동으로 반영해준다.
+      // 두 번째 인자(push)는 false로 둔다 — true로 하면 이 클라이언트가 다른 접속자에게도
+      // "이 소리를 재생해라"라고 socket으로 알리는데, createChatMessage 훅은 이미 모든
+      // 클라이언트에서 각자 실행되므로 push까지 켜면 소리가 중복 재생된다.
+      AudioHelper.play({ src: soundPath, volume: 1, autoplay: true, loop: false }, false);
+    }
+
+    runCutinSequence(overlay, img, growMs, holdMs, fadeMs);
+  };
+  img.onerror = () => {
+    console.error(`dw-critical-cutin | 컷인 이미지를 불러오지 못했습니다: ${imagePath}`);
+  };
+  img.src = imagePath;
 }
 
 /**
