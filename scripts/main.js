@@ -9,6 +9,49 @@ import { CutinConfig, MODULE_ID } from './cutin-config.js';
 import { CutinMaker } from './cutin-maker.js';
 
 /**
+ * 컷인 이미지 사전 로드 캐시. 발동 시점에 img.src를 처음 지정하면 브라우저가
+ * 그제서야 파일을 내려받기 시작해서 판정~그림이 뜨는 사이에 지연이 생긴다.
+ * 그래서 액터의 컷인 이미지 경로를 알게 되는 즉시(월드 로드 시, 또는 설정이
+ * 바뀔 때) 미리 한 번 img.src에 넣어 브라우저 캐시에 데이터를 올려두면,
+ * 실제 발동 시점에는 같은 경로로 다시 img.src를 지정해도 네트워크를 타지
+ * 않고 캐시에서 즉시 로드된다. 이 Set은 "이미 사전 로드를 시도한 경로"를
+ * 기억해서 같은 이미지를 여러 액터가 공유해도 중복으로 내려받지 않게 한다.
+ */
+const preloadedImagePaths = new Set();
+
+function preloadCutinImage(path) {
+  if (!path || preloadedImagePaths.has(path)) return;
+  preloadedImagePaths.add(path);
+
+  const img = new Image();
+  img.onerror = () => {
+    // 실패한 경로는 캐시 완료 표시에서 빼서, 다음에 다시 시도할 수 있게 한다.
+    preloadedImagePaths.delete(path);
+    console.warn(`dw-critical-cutin | 컷인 이미지 사전 로드 실패: ${path}`);
+  };
+  img.src = path;
+}
+
+/** 월드가 열릴 때, 컷인 이미지가 설정된 모든 액터의 이미지를 미리 캐시해둔다. */
+Hooks.once('ready', () => {
+  if (game.system.id !== 'dungeonworld') return;
+  for (const actor of game.actors) {
+    preloadCutinImage(actor.getFlag(MODULE_ID, 'image'));
+  }
+});
+
+/**
+ * "컷인 설정"이나 "이미지 만들기"로 액터의 컷인 이미지를 새로 지정하면(둘 다
+ * actor.setFlag를 호출하므로 이 훅으로 한 번에 잡힌다), 그 즉시 미리 캐시해둔다.
+ * ready 시점 이후에 새로 설정한 이미지도 놓치지 않기 위함.
+ */
+Hooks.on('updateActor', (actor, changes) => {
+  if (game.system.id !== 'dungeonworld') return;
+  const newImage = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.image`);
+  if (newImage) preloadCutinImage(newImage);
+});
+
+/**
  * GM이 설정(Configure Settings)의 모듈 설정 항목에서 조정하는 연출 타이밍 3종.
  * scope: 'world'로 등록하면 플레이어에게는 이 항목 자체가 보이지 않고,
  * GM만 Configure Settings 화면에서 값을 바꿀 수 있다 (Foundry 코어 동작).
@@ -245,10 +288,12 @@ function playCriticalCutin(imagePath, soundPath) {
   const holdMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'holdDuration')) || 0);
   const fadeMs = Math.max(0, Number(game.settings.get(MODULE_ID, 'fadeDuration')) || 0);
 
-  // img.src를 지정해도 실제 파일이 내려받아지기 전까지는 화면에 아무것도 안 보인다.
-  // 오버레이를 먼저 띄우고 타이머부터 돌리면, 유지 시간이 짧을 때 이미지가 채
-  // 로드되기도 전에 페이드아웃까지 끝나버려 그림이 거의 안 보이는 것처럼 된다.
-  // 그래서 이미지가 완전히 로드된 뒤에야 오버레이를 붙이고 소리·타이머를 시작한다.
+  // 위 preloadCutinImage 덕분에 보통은 이 이미지가 이미 브라우저 캐시에 있어서
+  // onload가 사실상 바로(같은 프레임에 가깝게) 발생한다. 다만 캐시가 없는
+  // 예외 상황(사전 로드 전에 이미지가 바뀌었다거나)에 대비해 안전장치로
+  // onload를 기다린 뒤에 오버레이를 붙이고 소리·타이머를 시작하도록 해둔다.
+  // (이 대기 없이 img.src 지정과 동시에 타이머를 돌리면, 캐시가 없을 때
+  // 유지 시간이 짧으면 이미지가 채 뜨기도 전에 페이드아웃까지 끝나버린다.)
   const img = document.createElement('img');
   img.onload = () => {
     const overlay = document.createElement('div');
