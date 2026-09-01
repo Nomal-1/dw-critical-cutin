@@ -132,6 +132,55 @@ Hooks.once('init', () => {
 });
 
 /**
+ * range로 등록한 설정은 코어가 슬라이더 옆에 값만 보여주는 표시 전용 요소
+ * (class="range-value")를 붙여주는데, 이건 드래그로만 값이 바뀌고 직접
+ * 타이핑은 안 된다. 정확한 값을 넣기 번거로우니, 게임 환경 설정 창이 뜰 때
+ * 이 표시 요소를 실제 입력 가능한 숫자 칸으로 바꿔치기한다.
+ * class는 그대로 "range-value"를 유지해서, 슬라이더를 드래그했을 때
+ * 코어가 알아서 이 칸의 값도 갱신해주는 동작은 그대로 살아있게 한다.
+ */
+Hooks.on('renderSettingsConfig', (app, html) => {
+  const rangeSettingKeys = [
+    'growDuration',
+    'holdDuration',
+    'fadeDuration',
+    'playerDamageThreshold',
+    'monsterDamageThreshold',
+  ];
+
+  for (const key of rangeSettingKeys) {
+    const rangeInput = html.find(`input[type="range"][name="${MODULE_ID}.${key}"]`);
+    if (rangeInput.length === 0) continue;
+
+    const display = rangeInput.siblings('.range-value');
+    if (display.length === 0) continue;
+
+    const numberInput = $('<input type="number" class="range-value dw-critical-cutin-range-number">');
+    numberInput.attr({
+      min: rangeInput.attr('min'),
+      max: rangeInput.attr('max'),
+      step: rangeInput.attr('step'),
+      value: rangeInput.val(),
+    });
+    display.replaceWith(numberInput);
+
+    // 슬라이더를 드래그하면 숫자 칸도 같이 갱신 (코어 동작에 얹혀가는 것과 별개로 확실하게).
+    rangeInput.on('input', () => numberInput.val(rangeInput.val()));
+
+    // 숫자 칸에 직접 입력하면 슬라이더 값도 맞춰준다. 범위를 벗어나면 min/max로 잘라낸다.
+    numberInput.on('change', () => {
+      const min = Number(rangeInput.attr('min'));
+      const max = Number(rangeInput.attr('max'));
+      let value = Number(numberInput.val());
+      if (!Number.isFinite(value)) value = Number(rangeInput.val());
+      value = Math.min(max, Math.max(min, value));
+      numberInput.val(value);
+      rangeInput.val(value);
+    });
+  }
+});
+
+/**
  * NPC의 액션(npcMove) 아이템 시트 "정보" 탭에 "이 액션 사용 시 컷인 발동" 체크박스를 추가한다.
  * 체크되어 있으면 주사위 결과나 판정 여부와 무관하게, 그 액션이 사용될 때마다
  * (채팅에 카드가 뜰 때마다) 무조건 컷인이 발동한다. GM에게만 보인다.

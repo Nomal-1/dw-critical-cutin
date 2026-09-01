@@ -48,3 +48,10 @@
   width: auto;
   margin: 0;
 }
+
+/* 게임 환경 설정의 슬라이더 옆, 직접 타이핑 가능하게 바꿔치기한 숫자 칸 */
+.dw-critical-cutin-range-number {
+  width: 60px;
+  flex: 0 0 auto;
+  text-align: right;
+}
