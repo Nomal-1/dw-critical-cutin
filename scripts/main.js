@@ -198,6 +198,12 @@ Hooks.on('renderItemSheet', (app, html, data) => {
   if (!game.user.isGM) return;
   if (app.item.type !== 'npcMove') return;
 
+  // 아이템 시트는 값이 바뀔 때마다(체크박스 자체를 클릭했을 때 포함) 다시
+  // 그려지면서 이 훅이 또 실행된다. 이미 넣어둔 체크박스가 있으면 중복으로
+  // 또 넣지 않는다 (그대로 두면 같은 체크박스가 계속 쌓인다).
+  const detailsTabExisting = html.closest('.app').find('.tab[data-tab="details"]');
+  if (detailsTabExisting.find('.dw-critical-cutin-force').length > 0) return;
+
   const checked = app.item.getFlag(MODULE_ID, 'forceCutin') ? 'checked' : '';
   const field = $(
     `<div class="resource dw-critical-cutin-force">` +
@@ -227,6 +233,11 @@ Hooks.on('renderActorSheet', (app, html, data) => {
   if (!game.user.isGM) return;
 
   const windowHeader = html.closest('.app').find('.window-header');
+
+  // 시트 안의 데이터가 바뀔 때마다(HP 조정, 판정 등) 이 훅이 다시 실행되는데,
+  // window-header는 그 사이 새로 그려지지 않고 그대로 남아있는 요소라서
+  // 매번 버튼을 새로 추가하면 계속 쌓인다. 이미 추가되어 있으면 건너뛴다.
+  if (windowHeader.find('.dw-critical-cutin-config').length > 0) return;
 
   const configButton = $(
     `<a class="header-button dw-critical-cutin-config" title="대성공 컷인 설정">` +
