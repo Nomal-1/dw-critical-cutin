@@ -1,0 +1,70 @@
+# GitHub에서 릴리즈를 "게시(publish)"하면 module.json의 version을 태그에 맞춰
+# 고치고, module.zip을 만들어 릴리즈에 module.json과 함께 올린다.
+# 로컬 PC 없이 휴대폰 GitHub 앱에서 태그(vX.Y.Z)로 릴리즈만 만들어도 된다.
+#
+# 수동 실행(workflow_dispatch)은 릴리즈를 만들지 않고 zip만 만들어
+# 아티팩트로 남기는 "연습 실행"이다(빌드가 깨지지 않았는지 확인용).
+name: Build module release files
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "연습 실행에 쓸 버전 (예: 1.2.3)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          raw="$INPUT_VERSION"
+          if [ "$EVENT" = "release" ]; then raw="$TAG"; fi
+          echo "version=${raw#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set version in module.json
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os, re, json
+          version = os.environ["VERSION"]
+          raw = open("module.json", encoding="utf-8").read()
+          raw, count = re.subn(r'("version"\s*:\s*")[^"]+(")', lambda m: m.group(1) + version + m.group(2), raw, count=1)
+          assert count == 1, "module.json에서 version 키를 찾지 못했습니다"
+          json.loads(raw)
+          open("module.json", "w", encoding="utf-8", newline="").write(raw)
+          PY
+
+      - name: Create module.zip
+        run: zip -r module.zip module.json scripts styles templates assets
+
+      - name: Upload to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" module.json module.zip --clobber
+
+      - name: Keep files as an artifact (dry run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-files
+          path: |
+            module.json
+            module.zip
