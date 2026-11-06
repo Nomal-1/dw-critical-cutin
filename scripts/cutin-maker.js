@@ -230,7 +230,7 @@ export class CutinMaker extends Application {
 
     let response;
     try {
-      response = await FilePicker.upload('data', targetDir, file, {}, { notify: false });
+      response = await getFilePickerClass().upload('data', targetDir, file, {}, { notify: false });
     } catch (err) {
       console.error('dw-critical-cutin | 컷인 이미지 업로드 실패', err);
       response = null;
@@ -278,10 +278,15 @@ export class CutinMaker extends Application {
   }
 }
 
+// V13+에서는 전역 FilePicker가 deprecated라 새 위치를 우선 쓴다(V12에는 전역만 있다).
+function getFilePickerClass() {
+  return foundry.applications?.apps?.FilePicker?.implementation ?? FilePicker;
+}
+
 /** 이미 폴더가 있으면 FilePicker.createDirectory가 에러를 던지므로 무시한다. */
 async function ensureUploadDirectory(dirPath) {
   try {
-    await FilePicker.createDirectory('data', dirPath);
+    await getFilePickerClass().createDirectory('data', dirPath);
   } catch (err) {
     // 폴더가 이미 있는 경우가 대부분이라 조용히 넘어간다.
   }

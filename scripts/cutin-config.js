@@ -9,6 +9,11 @@
 
 export const MODULE_ID = 'dw-critical-cutin';
 
+// V13+에서는 전역 FilePicker가 deprecated라 새 위치를 우선 쓴다(V12에는 전역만 있다).
+function getFilePickerClass() {
+  return foundry.applications?.apps?.FilePicker?.implementation ?? FilePicker;
+}
+
 export class CutinConfig extends FormApplication {
   constructor(actor, options = {}) {
     super(actor, options);
@@ -46,7 +51,7 @@ export class CutinConfig extends FormApplication {
       const targetName = button.dataset.target;
       const input = html.find(`input[name="${targetName}"]`)[0];
 
-      new FilePicker({
+      new (getFilePickerClass())({
         type,
         current: input.value,
         callback: (path) => {

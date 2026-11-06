@@ -139,7 +139,9 @@ Hooks.once('init', () => {
  * class는 그대로 "range-value"를 유지해서, 슬라이더를 드래그했을 때
  * 코어가 알아서 이 칸의 값도 갱신해주는 동작은 그대로 살아있게 한다.
  */
-Hooks.on('renderSettingsConfig', (app, html) => {
+Hooks.on('renderSettingsConfig', (app, htmlOrElement) => {
+  // V13+의 설정 화면(AppV2)은 jQuery가 아니라 HTMLElement를 넘겨준다.
+  const html = htmlOrElement instanceof jQuery ? htmlOrElement : $(htmlOrElement);
   const rangeSettingKeys = [
     'growDuration',
     'holdDuration',
@@ -367,7 +369,7 @@ function playCriticalCutin(imagePath, soundPath) {
       // 두 번째 인자(push)는 false로 둔다 — true로 하면 이 클라이언트가 다른 접속자에게도
       // "이 소리를 재생해라"라고 socket으로 알리는데, createChatMessage 훅은 이미 모든
       // 클라이언트에서 각자 실행되므로 push까지 켜면 소리가 중복 재생된다.
-      AudioHelper.play({ src: soundPath, volume: 1, autoplay: true, loop: false }, false);
+      (foundry.audio?.AudioHelper ?? AudioHelper).play({ src: soundPath, volume: 1, autoplay: true, loop: false }, false);
     }
 
     runCutinSequence(overlay, img, growMs, holdMs, fadeMs);
