@@ -7,7 +7,7 @@
   "download": "https://github.com/Nomal-1/dw-critical-cutin/releases/latest/download/module.zip",
   "compatibility": {
     "minimum": "12",
-    "verified": "12.331"
+    "verified": "14"
   },
   "relationships": {
     "systems": [
