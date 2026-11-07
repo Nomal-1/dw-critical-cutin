@@ -282,8 +282,14 @@ Hooks.on('createChatMessage', (message, options, userId) => {
   if (game.system.id !== 'dungeonworld') return;
 
   const $content = $('<div>').html(message.content);
-  const $moveCard = $content.find('.move-card');
-  if ($moveCard.length === 0) return;
+  let $moveCard = $content.find('.move-card');
+  if ($moveCard.length === 0) {
+    // dw-automation이 자동으로 굴리는 데미지 카드(근접·사격·주문 등)는 시스템의
+    // .move-card 래퍼 없이 .chat-damage-buttons(데미지 적용 버튼 묶음)만 가진다.
+    // 이런 카드도 데미지 카드로 취급해야 자동 데미지에서도 컷인이 뜬다.
+    if ($content.find('.chat-damage-buttons').length === 0) return;
+    $moveCard = $content;
+  }
 
   const actorId = message.speaker?.actor;
   const actor = actorId ? game.actors.get(actorId) : null;
@@ -318,7 +324,7 @@ function isCutinTriggered($moveCard, actor) {
 
   const isDamageRoll = $moveCard.find('.chat-damage-buttons').length > 0;
   if (isDamageRoll) {
-    const total = Number($moveCard.attr('data-roll-total'));
+    const total = getDamageTotal($moveCard);
     if (!Number.isFinite(total)) return false;
 
     const settingKey = actor.type === 'npc' ? 'monsterDamageThreshold' : 'playerDamageThreshold';
@@ -336,6 +342,16 @@ function isCutinTriggered($moveCard, actor) {
   }
 
   return false;
+}
+
+/**
+ * 데미지 카드의 합계. 시스템 카드는 data-roll-total 속성에 담고, 래퍼가 없는
+ * dw-automation 카드는 렌더된 굴림의 .dice-total 텍스트를 읽는다.
+ */
+function getDamageTotal($card) {
+  const attr = $card.attr('data-roll-total');
+  if (attr !== undefined) return Number(attr);
+  return Number($card.find('.dice-total').first().text().trim());
 }
 
 /**
