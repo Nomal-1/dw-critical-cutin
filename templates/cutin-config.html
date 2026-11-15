@@ -1,9 +1,9 @@
-<form autocomplete="off">
+<div class="dw-critical-cutin-config-body">
   <div class="form-group">
     <label>컷인 이미지</label>
     <div class="form-fields">
       <input type="text" name="image" value="{{image}}" placeholder="예: worlds/mygame/cutins/actor1.webp" />
-      <button type="button" class="file-picker-button" data-type="image" data-target="image" title="이미지 찾아보기">
+      <button type="button" class="file-picker-button" data-action="pickFile" data-type="image" data-target="image" title="이미지 찾아보기">
         <i class="fas fa-file-import"></i>
       </button>
     </div>
@@ -12,7 +12,7 @@
     <label>효과음 (선택)</label>
     <div class="form-fields">
       <input type="text" name="sound" value="{{sound}}" placeholder="예: worlds/mygame/sounds/critical.ogg" />
-      <button type="button" class="file-picker-button" data-type="audio" data-target="sound" title="효과음 찾아보기">
+      <button type="button" class="file-picker-button" data-action="pickFile" data-type="audio" data-target="sound" title="효과음 찾아보기">
         <i class="fas fa-file-import"></i>
       </button>
     </div>
@@ -20,4 +20,4 @@
   <footer class="sheet-footer flexrow">
     <button type="submit"><i class="fas fa-save"></i> 저장</button>
   </footer>
-</form>
+</div>

@@ -6,13 +6,11 @@
  * PNG를 다운로드한 다음 "컷인 설정" 창에서 다시 파일 찾아보기로 등록해야
  * 했는데, 이 창은 모듈 안에서 업로드까지 한 번에 끝낸다.
  *
- * Application: FVTT v12의 "구버전(v1) Application" 베이스 클래스.
- * FormApplication과 달리 정해진 폼 필드를 자동으로 저장해주지 않으므로,
- * 저장 버튼 클릭 시 우리가 직접 캔버스를 그려서 업로드하고 flag를 설정한다.
+ * ApplicationV2(12+) 창이다(옛 Application은 16에서 없어진다). 정해진 폼 필드를
+ * 자동 저장하지 않고, 저장 버튼을 누르면 직접 캔버스를 그려서 업로드하고 flag를 설정한다.
  *
- * 주의: 캔버스를 다시 그리는 내부 메서드 이름을 "_render"로 짓지 말 것.
- * Application 클래스가 실제 창 렌더링에 쓰는 내부 메서드 이름과 겹쳐서
- * render(true)를 호출해도 창이 열리지 않는 문제가 있었다(_redrawCanvas로 회피).
+ * 주의: 캔버스를 다시 그리는 메서드 이름을 "_render"·"render"로 짓지 말 것.
+ * 창 자체의 렌더링 메서드와 겹친다(그래서 _redrawCanvas).
  */
 
 import { MODULE_ID } from './cutin-config.js';
@@ -33,7 +31,9 @@ export const FRAME_PRESETS = [
 const OUTER_GRAY = { r: 159, g: 159, b: 159 };
 const GRAY_TOLERANCE = 14;
 
-export class CutinMaker extends Application {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+export class CutinMaker extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, options = {}) {
     super(options);
     this.actor = actor;
@@ -47,90 +47,91 @@ export class CutinMaker extends Application {
     this.dragOffset = { x: 0, y: 0 };
 
     // document 레벨 리스너(드래그 중 캔버스 밖으로 나가도 따라와야 함)는
-    // activateListeners에서 등록하고 close()에서 반드시 해제한다.
+    // _onRender에서 등록하고 _onClose에서 반드시 해제한다.
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
   }
 
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: 'dw-critical-cutin-maker',
-      title: '컷인 이미지 만들기',
-      template: `modules/${MODULE_ID}/templates/cutin-maker.html`,
-      width: 900,
-      height: 700,
-      resizable: true,
-    });
-  }
+  static DEFAULT_OPTIONS = {
+    id: 'dw-critical-cutin-maker',
+    window: { title: '컷인 이미지 만들기', resizable: true },
+    position: { width: 900, height: 700 },
+  };
 
-  /** @override */
-  getData() {
+  static PARTS = {
+    body: { template: `modules/${MODULE_ID}/templates/cutin-maker.html` },
+  };
+
+  async _prepareContext() {
     return { actorName: this.actor.name };
   }
 
-  /** @override */
-  activateListeners(html) {
-    super.activateListeners(html);
+  /** 창이 그려진 뒤 캔버스와 입력칸을 연결한다(이 창은 한 번만 그려진다). */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    const root = this.element;
+    const q = (sel) => root.querySelector(sel);
 
-    this.canvas = html.find('#dw-cutin-maker-canvas')[0];
+    this.canvas = q('#dw-cutin-maker-canvas');
     this.ctx = this.canvas.getContext('2d');
-    this.statusEl = html.find('#dw-cutin-maker-status')[0];
+    this.statusEl = q('#dw-cutin-maker-status');
 
-    this._buildPresetButtons(html);
+    this._buildPresetButtons(q('#dw-cutin-maker-presets'));
 
-    html.find('#dw-cutin-maker-char-input').on('change', (event) => this._onCharUpload(event));
+    q('#dw-cutin-maker-char-input').addEventListener('change', (event) => this._onCharUpload(event));
 
-    html.find('#dw-cutin-maker-scale').on('input', (event) => {
+    q('#dw-cutin-maker-scale').addEventListener('input', (event) => {
       this.charScale = Number(event.currentTarget.value) / 100;
-      html.find('#dw-cutin-maker-scale-val').text(`${event.currentTarget.value}%`);
+      q('#dw-cutin-maker-scale-val').textContent = `${event.currentTarget.value}%`;
       this._redrawCanvas();
     });
 
-    html.find('#dw-cutin-maker-rot').on('input', (event) => {
+    q('#dw-cutin-maker-rot').addEventListener('input', (event) => {
       this.charRot = Number(event.currentTarget.value);
-      html.find('#dw-cutin-maker-rot-val').text(`${event.currentTarget.value}°`);
+      q('#dw-cutin-maker-rot-val').textContent = `${event.currentTarget.value}°`;
       this._redrawCanvas();
     });
 
-    html.find('#dw-cutin-maker-canvas').on('mousedown', (event) => this._onMouseDown(event));
+    this.canvas.addEventListener('mousedown', (event) => this._onMouseDown(event));
+    document.removeEventListener('mousemove', this._onMouseMove);
+    document.removeEventListener('mouseup', this._onMouseUp);
     document.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('mouseup', this._onMouseUp);
 
-    html.find('#dw-cutin-maker-save').on('click', () => this._onSave());
+    q('#dw-cutin-maker-save').addEventListener('click', () => this._onSave());
   }
 
-  /** @override */
-  async close(options) {
+  _onClose(options) {
     document.removeEventListener('mousemove', this._onMouseMove);
     document.removeEventListener('mouseup', this._onMouseUp);
-    return super.close(options);
+    super._onClose?.(options);
   }
 
   _setStatus(message) {
     if (this.statusEl) this.statusEl.textContent = message;
   }
 
-  _buildPresetButtons(html) {
-    const list = html.find('#dw-cutin-maker-presets');
+  _buildPresetButtons(list) {
+    list.replaceChildren();
     FRAME_PRESETS.forEach((preset, index) => {
-      const btn = $(
-        `<div class="dw-cutin-maker-preset-btn">` +
-          `<img src="${preset.path}">` +
-          `<span>${preset.name}</span>` +
-        `</div>`
-      );
-      btn.on('click', () => this._selectPreset(index, btn, list));
+      const btn = document.createElement('div');
+      btn.className = 'dw-cutin-maker-preset-btn';
+      const img = document.createElement('img');
+      img.src = preset.path;
+      const label = document.createElement('span');
+      label.textContent = preset.name;
+      btn.append(img, label);
+      btn.addEventListener('click', () => this._selectPreset(index, btn, list));
       list.append(btn);
     });
 
     // 창을 열면 첫 번째 프레임을 자동으로 골라준다.
-    const first = list.children().first();
-    if (first.length) this._selectPreset(0, first, list);
+    if (list.firstElementChild) this._selectPreset(0, list.firstElementChild, list);
   }
 
   _selectPreset(index, btnEl, list) {
-    list.children().removeClass('active');
-    btnEl.addClass('active');
+    for (const child of list.children) child.classList.remove('active');
+    btnEl.classList.add('active');
 
     const img = new Image();
     img.onload = () => {
