@@ -39,6 +39,7 @@ jobs:
       - name: Set version in module.json
         env:
           VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           python3 - <<'PY'
           import os, re, json
@@ -46,6 +47,12 @@ jobs:
           raw = open("module.json", encoding="utf-8").read()
           raw, count = re.subn(r'("version"\s*:\s*")[^"]+(")', lambda m: m.group(1) + version + m.group(2), raw, count=1)
           assert count == 1, "module.json에서 version 키를 찾지 못했습니다"
+          # download는 이 태그의 zip을 가리키게 한다. latest를 가리키면 사전 릴리즈의
+          # module.json으로 설치할 때 이전 정식 버전 zip을 받아 버린다.
+          tag = os.environ.get("TAG") or ("v" + version)
+          url = f"https://github.com/Nomal-1/dw-critical-cutin/releases/download/{tag}/module.zip"
+          raw, count = re.subn(r'("download"\s*:\s*")[^"]+(")', lambda m: m.group(1) + url + m.group(2), raw, count=1)
+          assert count == 1, "module.json에서 download 키를 찾지 못했습니다"
           json.loads(raw)
           open("module.json", "w", encoding="utf-8", newline="").write(raw)
           PY
